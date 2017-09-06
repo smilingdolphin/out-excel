@@ -26,6 +26,7 @@ func main() {
 	s.RegisterControllers(
 		controllers.NewUsersController(),
 		controllers.NewExcelController(),
+		controllers.NewExcel2Controller(),
 	)
 
 	s.Start()
