@@ -3,6 +3,9 @@ package controllers
 import (
 	"fmt"
 
+	"os"
+	"time"
+
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/fpay/gopress"
 )
@@ -38,6 +41,17 @@ type JsonData struct {
 	Excel    []Sheet `json:"excel"`
 }
 
+type Row []string
+
+type Table struct {
+	Name string `json:"name"`
+	Rows []Row  `json:"rows"`
+}
+
+type TableData struct {
+	Excel []Table `json:"excel"`
+}
+
 // ExcelController
 type ExcelController struct {
 	// Uncomment this line if you want to use services in the app
@@ -55,10 +69,7 @@ func (c *ExcelController) RegisterRoutes(app *gopress.App) {
 	// Uncomment this line if you want to use services in the app
 	// c.app = app
 
-	app.POST("/excel/export", c.ExportExcelAction)
-	// app.POST("/excel/sample", c.SamplePostAction)
-	// app.PUT("/excel/sample", c.SamplePutAction)
-	// app.DELETE("/excel/sample", c.SampleDeleteAction)
+	app.POST("/excel/export", c.ExportExcelExAction)
 }
 
 // SampleGetAction Action
@@ -136,4 +147,42 @@ func (c *ExcelController) ExportExcelAction(ctx gopress.Context) error {
 	}
 
 	return ctx.File(filename)
+}
+
+func (c *ExcelController) ExportExcelExAction(ctx gopress.Context) error {
+	excel := new(TableData)
+	ctx.Bind(excel)
+
+	xlsx := excelize.NewFile()
+	sheetName := "Sheet1"
+	startCol := 0
+	for k, tbl := range excel.Excel {
+		if k >= 1 {
+			xlsx.NewSheet(k+1, tbl.Name)
+			sheetName = fmt.Sprintf("Sheet%d", k+1)
+		}
+		for l, r := range tbl.Rows {
+			startCol = 65
+			if len(r) > 0 {
+				for _, v := range r {
+					xlsx.SetCellValue(sheetName, fmt.Sprintf("%s%d", string(startCol), l+1), v)
+					startCol++
+				}
+			}
+		}
+
+		xlsx.SetSheetName(sheetName, tbl.Name)
+	}
+
+	xlsx.SetActiveSheet(1)
+
+	filename := fmt.Sprintf("/tmp/%s.xlsx", time.Now().Format("20060102150504.000"))
+	err := xlsx.SaveAs(filename)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	ctx.File(filename)
+	return os.Remove(filename)
 }
